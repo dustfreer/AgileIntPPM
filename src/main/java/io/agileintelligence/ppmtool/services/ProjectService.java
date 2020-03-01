@@ -1,20 +1,38 @@
 package io.agileintelligence.ppmtool.services;
 
+import io.agileintelligence.ppmtool.domain.Backlog;
 import io.agileintelligence.ppmtool.domain.Project;
 import io.agileintelligence.ppmtool.exceptions.ProjectIdException;
+import io.agileintelligence.ppmtool.repositories.BacklogRepository;
 import io.agileintelligence.ppmtool.repositories.ProjectRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ProjectService {
 
     @Autowired
+    private BacklogRepository backlogRepository;
+    @Autowired
     private ProjectRepository projectRepository;
 
     public Project saveOrUpdateProject(Project project) {
         try {
             project.setProjectIdentifier((project.getProjectIdentifier().toUpperCase()));
+
+            if (project.getId() == null) {
+                Backlog backlog = new Backlog();
+                project.setBacklog((backlog));
+                backlog.setProject(project);
+                backlog.setProjectIdentifier(project.getProjectIdentifier().toUpperCase());
+            }
+
+            if (project.getId() != null) {
+                project.setBacklog(backlogRepository.findByProjectIdentifier(project.getProjectIdentifier()));
+            }
+
             return projectRepository.save(project);
         }catch (Exception e) {
             throw new ProjectIdException("Project ID '" + project.getProjectIdentifier().toUpperCase()+ "' already exists");
@@ -27,6 +45,20 @@ public class ProjectService {
         if (project == null) {
             throw new ProjectIdException("Project ID '" + projectId + "' does not exists");
         }
-        return projectRepository.findByProjectIdentifier(projectId.toUpperCase());
+        return project;
+    }
+
+    public Iterable<Project> findAllProjects()
+    {
+        return projectRepository.findAll();
+    }
+
+    public void deleteProjectByIdentifier(String projectId) {
+        Project project = projectRepository.findByProjectIdentifier(projectId.toUpperCase());
+
+        if (project == null) {
+            throw new ProjectIdException("Cannot Project with ID '" + projectId + "'. This project does not exist");
+        }
+        projectRepository.delete(project);
     }
 }
